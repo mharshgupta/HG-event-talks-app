@@ -20,6 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearSearchBtn = document.getElementById('clear-search-btn');
     const typeFilter = document.getElementById('type-filter');
     const resultsCount = document.getElementById('results-count');
+    const themeToggle = document.getElementById('theme-toggle');
+    const exportCsvBtn = document.getElementById('export-csv-btn');
     
     const skeletonLoader = document.getElementById('skeleton-loader');
     const errorContainer = document.getElementById('error-container');
@@ -151,6 +153,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update results counter badge
         resultsCount.textContent = `${totalMatchedUpdates} update${totalMatchedUpdates !== 1 ? 's' : ''} found`;
 
+        filteredEntries = processedEntries; // Save to state for CSV export
+
         // Render feed
         renderFeed(processedEntries);
     }
@@ -205,6 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="update-meta">
                         <span class="badge ${badgeClass}">${update.type}</span>
                         <div class="item-actions">
+                            <button class="btn-icon-copy copy-trigger" title="Copy update to clipboard">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
                             <button class="btn-icon-tweet tweet-trigger" title="Tweet this update">
                                 <svg viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
@@ -216,6 +226,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${update.html}
                     </div>
                 `;
+
+                // Add event listener to Copy button
+                updateItem.querySelector('.copy-trigger').addEventListener('click', (e) => {
+                    const copyBtn = e.currentTarget;
+                    navigator.clipboard.writeText(update.text).then(() => {
+                        const originalHTML = copyBtn.innerHTML;
+                        copyBtn.innerHTML = `
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        `;
+                        copyBtn.classList.add('copied-success');
+                        setTimeout(() => {
+                            copyBtn.innerHTML = originalHTML;
+                            copyBtn.classList.remove('copied-success');
+                        }, 1500);
+                    }).catch(err => {
+                        console.error('Failed to copy text: ', err);
+                    });
+                });
 
                 // Add event listener to the specific Tweet button
                 updateItem.querySelector('.tweet-trigger').addEventListener('click', () => {
@@ -524,6 +554,73 @@ document.addEventListener('DOMContentLoaded', () => {
     tweetTextarea.addEventListener('input', updateCharCount);
     modalCopyBtn.addEventListener('click', copyTweetText);
     modalTweetBtn.addEventListener('click', publishTweet);
+
+    // Theme toggle handling
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        themeToggle.checked = true;
+    } else {
+        document.body.classList.remove('light-theme');
+        themeToggle.checked = false;
+    }
+
+    themeToggle.addEventListener('change', () => {
+        if (themeToggle.checked) {
+            document.body.classList.add('light-theme');
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.body.classList.remove('light-theme');
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+
+    // CSV Export helper functions
+    function escapeCSV(text) {
+        if (text === null || text === undefined) return '';
+        let stringVal = String(text);
+        stringVal = stringVal.replace(/"/g, '""');
+        if (stringVal.includes(',') || stringVal.includes('\n') || stringVal.includes('\r') || stringVal.includes('"')) {
+            stringVal = `"${stringVal}"`;
+        }
+        return stringVal;
+    }
+
+    function exportToCSV() {
+        if (!filteredEntries || filteredEntries.length === 0) {
+            alert('No release notes available to export.');
+            return;
+        }
+
+        const headers = ['Date', 'Category Type', 'Link', 'Description'];
+        const csvRows = [headers.join(',')];
+
+        filteredEntries.forEach(entry => {
+            entry.updates.forEach(update => {
+                const row = [
+                    escapeCSV(entry.date),
+                    escapeCSV(update.type),
+                    escapeCSV(entry.link),
+                    escapeCSV(update.text)
+                ];
+                csvRows.push(row.join(','));
+            });
+        });
+
+        const csvString = csvRows.join('\r\n');
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `bigquery_release_notes_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    exportCsvBtn.addEventListener('click', exportToCSV);
 
     // Initial load
     fetchReleaseNotes(false);
