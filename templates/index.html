@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Radar</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Link to custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- Meta Descriptions for SEO -->
+    <meta name="description" content="Track Google Cloud BigQuery release notes in a sleek, interactive, and modern dashboard. Filter updates, search features, and share to X instantly.">
+</head>
+<body>
+    <!-- App Shell -->
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo-area">
+                    <span class="logo-icon">⚡</span>
+                    <div class="logo-text">
+                        <h1>BigQuery Release Radar</h1>
+                        <p class="logo-tagline">Track, filter, and share Google Cloud BigQuery updates</p>
+                    </div>
+                </div>
+                
+                <div class="sync-actions">
+                    <span id="sync-status" class="sync-status">Checking...</span>
+                    <button id="refresh-btn" class="btn btn-primary" title="Refresh Release Notes">
+                        <svg class="icon spinner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                        </svg>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard View -->
+        <main class="app-main">
+            <!-- Filter & Search Toolbar -->
+            <section class="toolbar-section">
+                <div class="toolbar-card">
+                    <div class="search-box">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Search keywords (e.g., embeddings, storage, Studio)..." autocomplete="off">
+                        <button id="clear-search-btn" class="clear-btn" style="display: none;">&times;</button>
+                    </div>
+                    
+                    <div class="filter-controls">
+                        <div class="filter-group">
+                            <label for="type-filter">Type</label>
+                            <select id="type-filter">
+                                <option value="ALL">All Types</option>
+                                <option value="Feature">Features</option>
+                                <option value="Announcement">Announcements</option>
+                                <option value="Issue">Issues</option>
+                                <option value="Deprecation">Deprecations</option>
+                                <option value="Update">Other Updates</option>
+                            </select>
+                        </div>
+                        
+                        <div class="results-badge" id="results-count">
+                            Loading notes...
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Release Notes List Container -->
+            <section class="feed-section">
+                <!-- Skeleton Loader -->
+                <div id="skeleton-loader" class="loader-container">
+                    <div class="skeleton-card">
+                        <div class="skeleton-header"></div>
+                        <div class="skeleton-body">
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line short"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-card">
+                        <div class="skeleton-header"></div>
+                        <div class="skeleton-body">
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line short"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Container -->
+                <div id="error-container" class="error-container" style="display: none;">
+                    <div class="error-card">
+                        <span class="error-icon">⚠️</span>
+                        <h3>Failed to load release notes</h3>
+                        <p id="error-message">Unable to fetch the RSS feed. Please check your connection and try again.</p>
+                        <button id="retry-btn" class="btn btn-secondary">Retry Fetch</button>
+                    </div>
+                </div>
+
+                <!-- Feed Output -->
+                <div id="feed-timeline" class="feed-timeline" style="display: none;">
+                    <!-- JavaScript will inject the release note cards here -->
+                </div>
+                
+                <!-- Empty State -->
+                <div id="empty-state" class="empty-state" style="display: none;">
+                    <div class="empty-card">
+                        <span class="empty-icon">🔍</span>
+                        <h3>No matching release notes found</h3>
+                        <p>Try refining your search keyword or selecting a different type filter.</p>
+                        <button id="clear-filters-btn" class="btn btn-text">Reset Filters</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="app-footer-bar">
+            <p>BigQuery Release Radar &copy; 2026. Data sourced from <a href="https://cloud.google.com/bigquery/docs/release-notes" target="_blank" rel="noopener">Google Cloud BigQuery Release Notes</a>.</p>
+        </footer>
+    </div>
+
+    <!-- Tweet Composer Modal -->
+    <div id="tweet-modal" class="modal-overlay" aria-hidden="true">
+        <div class="modal-card">
+            <button id="close-modal-btn" class="modal-close" aria-label="Close modal">&times;</button>
+            
+            <div class="modal-header">
+                <span class="modal-title-icon">🐦</span>
+                <div>
+                    <h2>Draft Tweet</h2>
+                    <p class="modal-subtitle">Share this BigQuery update with your followers</p>
+                </div>
+            </div>
+            
+            <div class="modal-body">
+                <div class="composer-container">
+                    <textarea id="tweet-textarea" placeholder="What's happening?" rows="6"></textarea>
+                    
+                    <div class="composer-footer">
+                        <div class="char-counter-container">
+                            <span id="char-count">0</span>
+                            <span class="char-limit">/ 280</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Hint / Notice -->
+                <div class="composer-hint">
+                    <p>💡 Tip: You can edit the text above freely before posting. A link to the official release note is automatically included.</p>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button id="modal-copy-btn" class="btn btn-secondary">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    <span>Copy Text</span>
+                </button>
+                <button id="modal-tweet-btn" class="btn btn-tweet">
+                    <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                    <span>Tweet on X</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Tweet Highlight Button (WOW factor) -->
+    <button id="floating-tweet-btn" class="floating-tweet-btn" style="display: none;" title="Tweet highlighted text">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>
+        <span>Tweet Selection</span>
+    </button>
+
+    <!-- Link to custom JavaScript -->
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
